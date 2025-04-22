@@ -1,9 +1,7 @@
 import logging
 import time
 import requests
-import io
 import re
-import uuid
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -15,9 +13,9 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
-    ContextTypes,
-    filters,
     InlineQueryHandler,
+    filters,
+    ContextTypes,
 )
 
 # === CONFIG ===
@@ -44,14 +42,12 @@ WELCOME_MESSAGE = """
 
 I can help you download songs from Spotify. Here's how to use me:
 
-• Send me a song name to search for tracks.
-• Send me a Spotify track link to download directly.
-• Use inline mode by typing `@spotify_song_xbot <song name>` in any chat.
+• Send me a song name to search for tracks
+• Send me a Spotify track link to download directly
+• Use inline mode by typing @spotify_song_xbot in any chat
 
 Enjoy your music! 🎧
 """
-
-WELCOME_IMAGE_URL = "https://i.postimg.cc/McrMrTnc/welcome-image.png"
 
 # === /start ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -69,11 +65,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
     response_message = custom_response_messages.get(chat_id, DEFAULT_RESPONSE_MESSAGE)
     
-    await update.message.reply_photo(
-        photo=WELCOME_IMAGE_URL,
-        caption=WELCOME_MESSAGE + f"\n\n{response_message}",
+    await update.message.reply_text(
+        WELCOME_MESSAGE + f"\n\n{response_message}",
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(kb)
+    )
+
+# === /set command - Set custom response message ===
+async def set_response_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "Please provide a message to set as the response.\n"
+            "Example: `/set Type your favorite song name`",
+            parse_mode="Markdown"
+        )
+        return
+    
+    message = ' '.join(context.args)
+    chat_id = str(update.effective_chat.id)
+    custom_response_messages[chat_id] = message
+    
+    await update.message.reply_text(
+        f"✅ Response message set to:\n\n\"{message}\"",
+        parse_mode="Markdown"
     )
 
 # === SEARCH ===
@@ -114,13 +128,11 @@ async def on_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query:
         return
     
-    # Search for tracks
     tracks = search_tracks(query)
     if not tracks:
         await update.inline_query.answer([], cache_time=1)
         return
 
-    # Paginate results (10 per page)
     results = []
     for idx, track in enumerate(tracks[:10]):  # Limit to 10 results
         audio_url = track.get("audio")
@@ -135,7 +147,7 @@ async def on_inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 performer=track.get("artist", "Unknown Artist"),
             )
         )
-
+    
     await update.inline_query.answer(results, cache_time=1)
 
 # === HANDLE TEXT MESSAGES ===
@@ -143,19 +155,15 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = str(update.effective_chat.id)
     
-    # Check if it's a Spotify URL
     if "spotify.com" in text:
-        # Process the Spotify URL directly
         await process_spotify_url(update, context, text)
         return
     
-    # Regular search
     tracks = search_tracks(text)
     if not tracks:
         response_message = custom_response_messages.get(chat_id, DEFAULT_RESPONSE_MESSAGE)
         return await update.message.reply_text(f"❌ No tracks found. {response_message}")
 
-    # Save session
     sessions[chat_id] = {
         "tracks": tracks,
         "query": text,
@@ -200,7 +208,11 @@ async def process_spotify_url(update, context, spotify_url):
         
     except Exception as e:
         logger.error(f"Error processing Spotify URL: {e}")
-        await message.edit_text("❌ Error downloading. Please try again.")
+        kb = [[InlineKeyboardButton("🔗 Try Direct Download", url=DOWNLOAD_API + spotify_url)]]
+        await message.edit_text(
+            "❌ Error downloading. Please try again or use the direct link below:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
 
 # === CALLBACK HANDLER ===
 async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -246,6 +258,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("set", set_response_message))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(InlineQueryHandler(on_inline_query))
