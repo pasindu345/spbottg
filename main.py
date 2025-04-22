@@ -26,7 +26,8 @@ PAGE_SIZE    = 10
 TIMEOUT_SEC  = 120  # 2 minutes
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
+
 
 # In‑memory session store: chat_id → { tracks, query, timestamp }
 sessions = {}
