@@ -57,7 +57,7 @@ logging.basicConfig(
 )
 # set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
 # In-memory stores
 # sessions: chat_id -> { tracks, query, timestamp, initiator_user_id }
@@ -65,7 +65,7 @@ sessions = {}
 # stats: simple in-memory counters
 stats = {"users": set(), "groups": set(), "downloads": 0, "searches": 0}
 # You might want to replace ADMIN_USER_IDS with the actual Telegram User IDs of admins
-ADMIN_USER_IDS = {123456789} # Example Admin User ID
+ADMIN_USER_IDS = {5491775006} # Example Admin User ID
 
 
 # === Helper to extract chat member changes ===
